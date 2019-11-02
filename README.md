@@ -14,5 +14,5 @@ sudo chown -R root:wheel AppleIntelWifiAdapterV2.kext/
 sudo kextload -v AppleIntelWifiAdapterV2.kext/
 ``` 
 
-![图片1](https://github.com/zxystd/AppleIntelWifiAdapter/blob/master/img/QQ20191102-195821.png)  
-![图片2](https://github.com/zxystd/AppleIntelWifiAdapter/blob/master/img/QQ20191102-195905.png)  
+![图片1](https://github.com/zxystd/AppleIntelWifiAdapter/raw/master/img/QQ20191102-195821.png)  
+![图片2](https://github.com/zxystd/AppleIntelWifiAdapter/raw/master/img/QQ20191102-195905.png)  
