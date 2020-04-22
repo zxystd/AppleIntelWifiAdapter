@@ -2,17 +2,36 @@
 #ifndef macroAppleIntelWifiAdapter_hpp
 #define AppleIntelWifiAdapter_hpp
 
-#include "apple80211/IO80211Controller.h"
-#include "apple80211/IO80211Interface.h"
+#include "HackIO80211Interface.h"
 #include <IOKit/network/IOEthernetController.h>
+#include "IOKit/network/IOGatedOutputQueue.h"
+#include <IOKit/IOFilterInterruptEventSource.h>
+#include <libkern/c++/OSString.h>
 
 #include <IOKit/IOService.h>
 #include <IOKit/pci/IOPCIDevice.h>
 #include <IOKit/IOLib.h>
+#include "IWLMvmDriver.hpp"
 
-class AppleIntelWifiAdapterV2 : public IO80211Controller
+OSDefineMetaClassAndStructors(CTimeout, OSObject)
+
+enum {
+    kOffPowerState,
+    kOnPowerState,
+    kNumPowerStates
+};
+
+static IOPMPowerState gPowerStates[kNumPowerStates] = {
+    // kOffPowerState
+    {kIOPMPowerStateVersion1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    // kOnPowerState
+    {kIOPMPowerStateVersion1, (kIOPMPowerOn | kIOPMDeviceUsable), kIOPMPowerOn, kIOPMPowerOn, 0, 0, 0, 0, 0, 0, 0, 0}
+};
+
+class AppleIntelWifiAdapterV2 : public IOEthernetController
 {
     OSDeclareDefaultStructors( AppleIntelWifiAdapterV2 )
+    
 public:
     
     bool init(OSDictionary *properties) override;
@@ -20,40 +39,30 @@ public:
     IOService* probe(IOService* provider, SInt32* score) override;
     bool start(IOService *provider) override;
     void stop(IOService *provider) override;
-    SInt32 apple80211Request(unsigned int, int, IO80211Interface*, void*) override;
-    SInt32 apple80211VirtualRequest(uint,int,IO80211VirtualInterface *,void *) override;
-    const OSString* newVendorString() const override;
-    const OSString* newModelString() const override;
-    IOReturn getHardwareAddressForInterface(IO80211Interface* netif, IOEthernetAddress* addr) override;
     IOReturn getHardwareAddress(IOEthernetAddress* addrP) override;
     IOReturn enable(IONetworkInterface *netif) override;
     IOReturn disable(IONetworkInterface *netif) override;
-    bool configureInterface(IONetworkInterface *netif) override;
-    IO80211Interface *getNetworkInterface() override;
     IOReturn setPromiscuousMode(bool active) override;
     IOReturn setMulticastMode(bool active) override;
-    SInt32 monitorModeSetEnabled(IO80211Interface*, bool, unsigned int) {
-        return kIOReturnSuccess;
-    }
-    bool createWorkLoop() override;
-    IOWorkLoop* getWorkLoop() const override;
-    int apple80211SkywalkRequest(uint,int, IO80211SkywalkInterface *,void *) override;
-    SInt32 disableVirtualInterface(IO80211VirtualInterface *) override;
-    SInt32 enableVirtualInterface(IO80211VirtualInterface *) override;
-    UInt32 getDataQueueDepth(OSObject *) override;
-    SInt32 setVirtualHardwareAddress(IO80211VirtualInterface *,ether_addr *) override;
-    IO80211ScanManager* getPrimaryInterfaceScanManager(void) override;
-    IO80211SkywalkInterface* getInfraInterface(void) override;
-    IO80211ControllerMonitor* getInterfaceMonitor(void) override;
-    
+    IOOutputQueue * createOutputQueue() override;
+    UInt32 outputPacket(mbuf_t, void * param) override;
+    static void intrOccured(OSObject *object, IOInterruptEventSource *, int count);
+    static bool intrFilter(OSObject *object, IOFilterInterruptEventSource *src);
+    IONetworkInterface * createInterface() override;
+    bool configureInterface(IONetworkInterface * interface) override;
     
 public:
     
     
 private:
-    IOPCIDevice *pciDevice;
+    IWLMvmDriver *drv;
+    IOGatedOutputQueue*    fOutputQueue;
+    IOInterruptEventSource* fInterrupt;
+    IOEthernetInterface *netif;
+    IOCommandGate *gate;
+    IOWorkLoop* irqLoop;
     
-    IO80211WorkLoop *fWorkLoop;
+    void releaseAll();
 };
 
 #endif
